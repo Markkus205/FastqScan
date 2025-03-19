@@ -1,19 +1,24 @@
 mod parser;
-mod phred;
-mod explain;
-
 use clap::Parser;
-
-use explain::*;
 use parser::*;
-use phred::*;
 use std::fs::File;
+
+// & phredscore = 5 | fehler% = 10^-5/10 = ~0.316 (jede base hat ca 30% fehlerquote) * 1000 = ~316 erwartet sind ca 300 fehler
 
 fn main() {
     let args = Args::parse();
-    read(&args);
-    println!("Hello, world!");
-    let data_name = "@HWI-D00107:50:H6BP8ACWV:5:2204:10131:51624 2:N:0:AGGCAGAA";
-    explain_data(data_name);
+
+    // Process first read
+    match process_fastq(&args.read1) {
+        Ok(avg_qual_r1) => println!("Average Quality Score (Read 1): {:.2}", avg_qual_r1),
+        Err(e) => eprintln!("Error processing Read 1: {}", e),
+    }
+
+    // Process second read if provided
+    if let Some(read2_path) = args.read2 {
+        match process_fastq(&read2_path) {
+            Ok(avg_qual_r2) => println!("Average Quality Score (Read 2): {:.2}", avg_qual_r2),
+            Err(e) => eprintln!("Error processing Read 2: {}", e),
+        }
+    }
 }
-// & phredscore = 5 | fehler% = 10^-5/10 = ~0.316 (jede base hat ca 30% fehlerquote) * 1000 = ~316 erwartet sind ca 300 fehler
