@@ -1,6 +1,6 @@
 use clap::Parser;
 use std::{fs::File, path::PathBuf};
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Read};
 use flate2::read::GzDecoder;
 
 
@@ -15,7 +15,9 @@ pub struct Args {
     #[arg(short = '2' , long)]
     pub read2: Option<PathBuf>,
 }
-//change these to patchbuf 
+
+
+//modify so it works with input
 pub fn explain_data(data_name: &str){
     let split : Vec<&str> = data_name
         .split(|c| c == ' ' || c == ':' || c == '.' || c == '_')
@@ -61,18 +63,31 @@ pub fn read_qual(qual_string: &[u8]) -> f64 {
 //overflow error
 //benchmark?
 
-pub fn process_fastq(file_path: &PathBuf) -> io::Result<f64> {
-    let file = File::open(file_path)?;
-    let buf_reader = BufReader::new(file);
+pub fn decompress_gz_file(path: &str) -> io::Result<BufReader<Box<dyn Read>>> {
+    let file = File::open(path)?;
+    if path.ends_with(".gz") {
+        let decoder = GzDecoder::new(file);
+        Ok(BufReader::new(Box::new(decoder)))
+    } else {
+        Ok(BufReader::new(Box::new(file)))
+    }
+}
 
+//seperate function reads -> bufread, check decompression
+pub fn average_quality<T: BufRead>(buf_reader: T) -> io::Result<f64> {
     let mut total_quality = 0.0;
-    let mut read_count = 0;
+    let mut read_count: u16 = 0;
 
-    for line in buf_reader.lines().skip(3).step_by(4) {  // Skip to every 4th line
-        if let Ok(qual_line) = line {
-            println!("Processing line: {} \n", qual_line);
-            total_quality += read_qual(qual_line.as_bytes());
-            read_count += 1;
+    for line in buf_reader.lines().skip(3).step_by(4) {
+        match line {
+            Ok(qual_line) => {
+                println!("Processing line: {}", qual_line);
+                total_quality += read_qual(qual_line.as_bytes());
+                read_count += 1;
+            }
+            Err(e) => {
+                eprintln!("Error reading line: {}", e);
+            }
         }
     }
 
@@ -80,18 +95,39 @@ pub fn process_fastq(file_path: &PathBuf) -> io::Result<f64> {
         return Ok(0.0);
     }
 
-    Ok(total_quality / read_count as f64) // Return the average quality across all reads
+    Ok(total_quality / read_count as f64)
 }
-//missing decompression
 
 
+
+
+
+
+
+// TESTS START HERE
 pub mod test {
     use super::*;
     #[test]
-    fn test_process_fastq() {
-        let file_path = PathBuf::from("data/test.R1.fastq");
-        let res = process_fastq(&file_path).unwrap();
-        let expected = 39.72222222222222; //((8+18)*40 + 10*39) / (18 +18)
+    fn test_decompress_gz_file() {
+        let file_path = "data/test.R1com.fastq.gz";
+        let buf_reader = decompress_gz_file(file_path).unwrap();
+
+        // Print the first 4 lines of the decompressed file
+        for (i, line) in buf_reader.lines().take(4).enumerate() {
+            if let Ok(content) = line {
+                println!("Line {}: {}", i + 1, content);
+            } else {
+                println!("Failed to read line {}", i + 1);
+            }
+        }
+    }
+
+    #[test]
+    fn test_average_quality() {
+        let file_path = "data/test.R1com.fastq.gz";
+        let buf_reader = decompress_gz_file(file_path).unwrap();
+        let res = average_quality(buf_reader).unwrap();
+        let expected = 39.72222222222222; // Example expected value
         assert_eq!(expected, res);
     }
 
