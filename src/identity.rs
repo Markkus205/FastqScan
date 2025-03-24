@@ -86,7 +86,6 @@ mod tests {
 
         println!("Counts vector: {:?}", counts);
 
-        // Calculate proportions
         let proportions = calculate_proportions(counts);
 
         println!("Proportions vector: {:?}", proportions);

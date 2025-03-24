@@ -99,7 +99,7 @@ pub fn average_quality<T: BufRead>(buf_reader: T) -> io::Result<f64> {
 }
 
 
-
+//traits 
 
 
 
