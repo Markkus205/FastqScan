@@ -1,7 +1,7 @@
 use std::io::BufRead;
 
 #[derive(Debug, Clone)]
-struct BaseCounts {
+pub struct BaseCounts {
     a: u64,
     c: u64,
     g: u64,

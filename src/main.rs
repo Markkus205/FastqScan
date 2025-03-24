@@ -1,34 +1,49 @@
-mod parser;
+mod runner;
 mod identity;
+mod qual;
+
+use runner::*;
+use qual::*;
 use identity::*;
 use clap::Parser;
-use parser::*;
-use std::fs::File;
 
-// & phredscore = 5 | fehler% = 10^-5/10 = ~0.316 (jede base hat ca 30% fehlerquote) * 1000 = ~316 erwartet sind ca 300 fehler
+use std::fs::File;
 
 fn main() {
     let args = Args::parse();
 
-    // Process first read
-    match decompress_gz_file(args.read1.to_str().unwrap()) {
-        Ok(buf_reader) => match average_quality(buf_reader) {
-            Ok(avg_qual_r1) => println!("Average Quality Score (Read 1): {:.2}", avg_qual_r1),
-            Err(e) => eprintln!("Error processing Read 1: {}", e),
-        },
-        Err(e) => eprintln!("Error decompressing Read 1: {}", e),
+    // Initialize WorkflowRunner with statistics
+    let mut runner = WorkflowRunner {
+        statistics: vec![
+            Box::new(BaseQualityPosStatistic { avg_phred: None, total: 0, count: 0, avg_read_quality: None }),
+            Box::new(AverageProportionsStatistic { ave_prop: Vec::new() }),
+        ],
+    };
+
+    // Process the first read
+    if let Ok(buf_reader) = decompress_gz_file(args.read1.to_str().unwrap()) {
+        println!("Processing Read 1...");
+        runner.process(buf_reader);
+    } else {
+        eprintln!("Error decompressing Read 1.");
     }
 
-    // Process second read if provided
+    // Process the second read if provided
     if let Some(read2_path) = args.read2 {
-        match decompress_gz_file(read2_path.to_str().unwrap()) {
-            Ok(buf_reader) => match average_quality(buf_reader) {
-                Ok(avg_qual_r2) => println!("Average Quality Score (Read 2): {:.2}", avg_qual_r2),
-                Err(e) => eprintln!("Error processing Read 2: {}", e),
-            },
-            Err(e) => eprintln!("Error decompressing Read 2: {}", e),
+        if let Ok(buf_reader) = decompress_gz_file(read2_path.to_str().unwrap()) {
+            println!("Processing Read 2...");
+            runner.process(buf_reader);
+        } else {
+            eprintln!("Error decompressing Read 2.");
         }
     }
+
+    // Finalize and retrieve statistics
+    /*let statistics = runner.finalize();
+    for stat in statistics {
+        // Print or process the results of each statistic
+        println!("{:?}", stat);
+    }*/
 }
-//cargo clippy
-//cargo run -- -1 data/test.R1com.fastq.gz -2 data/test.R2com.fastq.gz
+
+//cargo run -- -1 data/test.R1.fastq -2 data/test.R2.fastq
