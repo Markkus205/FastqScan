@@ -10,8 +10,8 @@ The application takes either a single FASTQ file for (single-end) sequencing
 or two (paired-end) FASTQ files, and reports the following Q/C metrics:
 
 * average base quality (Phred)
-* average quality of all reads
-* average proportions of `{A, C, G, T, N}` for each read position
+* average quality of all reads //me
+* average proportions of `{A, C, G, T, N}` for each read position //me
 * average G/C content per read position
 * average G/C content per read
 * distribution of lengths of the individual reads

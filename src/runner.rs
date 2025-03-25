@@ -6,7 +6,6 @@ pub struct FastqRecord {
 }
 
 
-
 pub trait Statistic {
     /* Statistics:
      * average base quality (Phred)
@@ -17,39 +16,31 @@ pub trait Statistic {
 
     fn process(&mut self, record: &FastqRecord);
 
-    // TODO - find a way to represent the results.
-    // Let's try to identify the shared parts of *any* statistic
-    // and report these in some fashion.
-    // fn report(self) -> ?
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
-/// Computes mean base quality for a position read.
-pub struct BaseQualityPosStatistic {
+// to do: Rolling mean for Average Base Quality, work over average base quailty so it give out %, find alternative in parse record for to_vec, add test function for average proportions. Go from there. 
+pub struct AvBaseQualityStatistic {
     pub total: u32,
     pub count: u32,
-    pub avg_phred: Option<f64>,
-    pub avg_read_quality: Option<f64>,
-
 }
-
-impl Statistic for BaseQualityPosStatistic {
+//rolling mean 
+impl Statistic for AvBaseQualityStatistic {
     fn process(&mut self, record: &FastqRecord) {
         let qual_sum: f64 = record.qual
             .iter()
             .map(|&q| (q - 33) as f64) // Convert ASCII to Phred score
             .sum();
-    
-        self.avg_phred = Some(qual_sum / record.qual.len() as f64); //Check if this works
-    
-        self.count += 1;
+        self.count += record.qual.len() as u32;
         self.total += qual_sum as u32;
-
-        print!("Avg Phred: {:?} \n", self.avg_phred);
         print!("Count: {:?}\n", self.count);
         print!("Total: {:?} \n", self.total);
     }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
-
+//tests
 /// Computes mean base quality for a read.
 pub struct AverageProportionsStatistic {
     pub ave_prop: Vec<(BaseCounts)>,
@@ -74,6 +65,9 @@ impl Statistic for AverageProportionsStatistic {
                 i, base_count.a, base_count.c, base_count.g, base_count.t, base_count.n
             );
         }
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -108,7 +102,7 @@ impl BaseCounts {
             _ => self.n += 1, // Ambiguous or unknown
         }
     }
-    fn get_proportions(&self, total: u64) -> (f64, f64, f64, f64, f64) { 
+    fn get_proportions(&self, total: u64) -> (f64, f64, f64, f64, f64) { //New version of this similar to update. Convert struct to f64?
         if total > 0 {
             (
                 self.a as f64 / total as f64, 
@@ -153,7 +147,6 @@ impl WorkflowRunner {
     {
         let mut buffer = String::new();
 
-        // Read exactly four lines for a FASTQ record
         for i in 0..4 {
             buffer.clear();
             if read.read_line(&mut buffer)? == 0 {
@@ -163,7 +156,7 @@ impl WorkflowRunner {
 
             match i {
                 1 => {
-                    record.seq = buffer.trim_end().as_bytes().to_vec();
+                    record.seq = buffer.trim_end().as_bytes().to_vec(); //make sure record is empty fill with bytes that are in buffer
                 }
                 3 => {
                      record.qual = buffer.trim_end().as_bytes().to_vec();
@@ -178,5 +171,33 @@ impl WorkflowRunner {
     pub fn finalize(self) -> Vec<Box<dyn Statistic>> {
         // Move out the statistics, effectively preventing the future use of the runner.
         self.statistics
+    }
+}
+
+pub mod test {
+    use super::*;
+    use std::fs::File;
+    use std::io::{BufReader};
+    #[test]
+    fn test_workflow() {
+        let file = File::open("data/test.R1.fastq").expect("Failed to open test file");
+        let buf_reader = BufReader::new(file);
+
+        let mut runner = WorkflowRunner {
+            statistics: vec![
+                Box::new(AvBaseQualityStatistic { total: 0, count: 0 }),
+                //add other types here for other tests
+            ],
+        };
+        
+        runner.process(buf_reader);
+        let statistics = runner.finalize();
+        for stat in statistics {
+            if let Some(av_stat) = stat.as_any().downcast_ref::<AvBaseQualityStatistic>() {
+                println!("AvBaseQualityStatistic: {}", av_stat.total as f64/av_stat.count as f64);
+                assert!(av_stat.total as f64/av_stat.count as f64 == 39.72222222222222);
+            }
+            //add test for other types with new else if statment
+        }
     }
 }

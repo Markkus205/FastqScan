@@ -15,7 +15,7 @@ fn main() {
     // Initialize WorkflowRunner with statistics
     let mut runner = WorkflowRunner {
         statistics: vec![
-            Box::new(BaseQualityPosStatistic { avg_phred: None, total: 0, count: 0, avg_read_quality: None }),
+            Box::new(AvBaseQualityStatistic { total: 0, count: 0 }),
             Box::new(AverageProportionsStatistic { ave_prop: Vec::new() }),
         ],
     };
