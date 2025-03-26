@@ -19,29 +19,27 @@ pub trait Statistic {
     fn as_any(&self) -> &dyn std::any::Any;
 }
 
-// to do: Rolling mean for Average Base Quality, work over average base quailty so it give out %, find alternative in parse record for to_vec, add test function for average proportions. Go from there. 
+
 pub struct AvBaseQualityStatistic {
-    pub total: u32,
-    pub count: u32,
+    pub mean: f64,  
+    pub count: u32, 
 }
-//rolling mean 
+/// Computes mean base quality for a read.
 impl Statistic for AvBaseQualityStatistic {
     fn process(&mut self, record: &FastqRecord) {
-        let qual_sum: f64 = record.qual
-            .iter()
-            .map(|&q| (q - 33) as f64) // Convert ASCII to Phred score
-            .sum();
-        self.count += record.qual.len() as u32;
-        self.total += qual_sum as u32;
-        print!("Count: {:?}\n", self.count);
-        print!("Total: {:?} \n", self.total);
+        for &q in record.qual.iter() {
+            let phred_score = (q - 33) as f64; 
+            self.count += 1;
+            self.mean += (phred_score - self.mean) / self.count as f64; // Update rolling mean
+        }
     }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 }
-//tests
-/// Computes mean base quality for a read.
+
+
 pub struct AverageProportionsStatistic {
     pub ave_prop: Vec<(BaseCounts)>,
 }
@@ -55,15 +53,6 @@ impl Statistic for AverageProportionsStatistic {
 
         for i in 0..record.seq.len() {
             self.ave_prop[i].update(record.seq[i]);
-        }
-        //add get proportions functions
-
-        println!("Average Proportions Vector:");
-        for (i, base_count) in self.ave_prop.iter().enumerate() {
-            println!(
-                "Position {}: A: {}, C: {}, G: {}, T: {}, N: {}",
-                i, base_count.a, base_count.c, base_count.g, base_count.t, base_count.n
-            );
         }
     }
     fn as_any(&self) -> &dyn std::any::Any {
@@ -102,7 +91,7 @@ impl BaseCounts {
             _ => self.n += 1, // Ambiguous or unknown
         }
     }
-    fn get_proportions(&self, total: u64) -> (f64, f64, f64, f64, f64) { //New version of this similar to update. Convert struct to f64?
+    fn get_proportions(&self, total: u64) -> (f64, f64, f64, f64, f64) { 
         if total > 0 {
             (
                 self.a as f64 / total as f64, 
@@ -153,13 +142,15 @@ impl WorkflowRunner {
                 // If we reach EOF before reading 4 lines, return an error
                 return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Incomplete FASTQ record"));
             }
-
+            // make sure record is empty and then fill it with the bytes from the buffer
             match i {
                 1 => {
-                    record.seq = buffer.trim_end().as_bytes().to_vec(); //make sure record is empty fill with bytes that are in buffer
+                    record.seq.clear(); 
+                    record.seq.extend(buffer.trim_end().as_bytes());
                 }
                 3 => {
-                     record.qual = buffer.trim_end().as_bytes().to_vec();
+                    record.qual.clear(); 
+                    record.qual.extend(buffer.trim_end().as_bytes());
                 }
                 _ => {}
             }
@@ -179,25 +170,55 @@ pub mod test {
     use std::fs::File;
     use std::io::{BufReader};
     #[test]
-    fn test_workflow() {
+    fn test_av_base_quality_statistic_with_rolling_mean() {
         let file = File::open("data/test.R1.fastq").expect("Failed to open test file");
         let buf_reader = BufReader::new(file);
 
         let mut runner = WorkflowRunner {
             statistics: vec![
-                Box::new(AvBaseQualityStatistic { total: 0, count: 0 }),
-                //add other types here for other tests
+                Box::new(AvBaseQualityStatistic { mean: 0.0, count: 0 }),
             ],
         };
-        
+
         runner.process(buf_reader);
         let statistics = runner.finalize();
+
         for stat in statistics {
             if let Some(av_stat) = stat.as_any().downcast_ref::<AvBaseQualityStatistic>() {
-                println!("AvBaseQualityStatistic: {}", av_stat.total as f64/av_stat.count as f64);
-                assert!(av_stat.total as f64/av_stat.count as f64 == 39.72222222222222);
+                println!("Final Rolling Mean: {:.2}", av_stat.mean);
+                assert!((av_stat.mean - 39.72).abs() < 0.01); // Allow small rounding errors
             }
-            //add test for other types with new else if statment
+        }
+    }
+
+    #[test]
+    fn test_all_statistics() {
+        let file = File::open("data/test.R1.fastq").expect("Failed to open test file");
+        let buf_reader = BufReader::new(file);
+
+        let mut runner = WorkflowRunner {
+            statistics: vec![
+                Box::new(AvBaseQualityStatistic { mean: 0.0, count: 0 }),
+                Box::new(AverageProportionsStatistic { ave_prop: Vec::new() }),
+            ],
+        };
+
+        runner.process(buf_reader);
+        let statistics = runner.finalize();
+
+        for stat in statistics {
+            if let Some(av_stat) = stat.as_any().downcast_ref::<AvBaseQualityStatistic>() {
+                println!("Final Rolling Mean: {:.2}", av_stat.mean);
+                assert!((av_stat.mean - 39.72).abs() < 0.01); 
+            } else if let Some(avg_prop_stat) = stat.as_any().downcast_ref::<AverageProportionsStatistic>() {
+                println!("Average Proportions Vector:");
+                for (i, base_count) in avg_prop_stat.ave_prop.iter().enumerate() {
+                    println!("Total in Pos {}: A: {:.2}, C: {:.2}, G: {:.2}, T: {:.2}, N: {:.2}", i + 1, base_count.a, base_count.c, base_count.g, base_count.t, base_count.n);
+                    let total = base_count.get_total();
+                    let (a, c, g, t, n) = base_count.get_proportions(total);
+                    println!("    % in Pos {}: A: {:.2}, C: {:.2}, G: {:.2}, T: {:.2}, N: {:.2}", i + 1, a, c, g, t, n);
+                }
+            }
         }
     }
 }
