@@ -1,13 +1,14 @@
 mod runner;
-mod identity;
 mod qual;
+mod statistics;
 
-use runner::*;
+use runner::WorkflowRunner;
+use crate::statistics::avproportion::AverageProportionsStatistic;
+use crate::statistics::avbase::AvBaseQualityStatistic;
 use qual::*;
-use identity::*;
-use clap::Parser;
 
-use std::fs::File;
+
+use clap::Parser;
 
 fn main() {
     let args = Args::parse();

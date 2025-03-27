@@ -1,6 +1,6 @@
 use clap::Parser;
 use std::{fs::File, path::PathBuf};
-use std::io::{self, BufRead, BufReader, Read};
+use std::io::{self, BufReader, Read};
 use flate2::read::GzDecoder;
 
 
@@ -30,7 +30,16 @@ pub fn explain_data(data_name: &str){
     println!("Die Read-Nummer: {}", split[3]);
     println!("set number: {}", split[4]);
 }
-    /*
+pub fn decompress_gz_file(path: &str) -> io::Result<BufReader<Box<dyn Read>>> {
+    let file = File::open(path)?;
+    if path.ends_with(".gz") {
+        let decoder = GzDecoder::new(file);
+        Ok(BufReader::new(Box::new(decoder)))
+    } else {
+        Ok(BufReader::new(Box::new(file)))
+    }
+}  
+/*
     else {
         println!("Die eindeutige Gerätebezeichnung: {}", split[0]);
         println!("Die Lauf-ID: (dies ist das {} ste Mal, dass dieses Gerät betrieben wurde)", split[1]);
@@ -47,10 +56,11 @@ pub fn explain_data(data_name: &str){
         */
 
 //split into 2.
-
+/* 
 pub fn calculate_phred(qual: u8) -> u8 {
     qual - 33
 }
+
 //check lowerbound -> produce none
 pub fn read_qual(qual_string: &[u8]) -> f64 {
     let n = qual_string.len() as f64;
@@ -62,17 +72,9 @@ pub fn read_qual(qual_string: &[u8]) -> f64 {
 }
 //overflow error
 //benchmark?
+*/
 
-pub fn decompress_gz_file(path: &str) -> io::Result<BufReader<Box<dyn Read>>> {
-    let file = File::open(path)?;
-    if path.ends_with(".gz") {
-        let decoder = GzDecoder::new(file);
-        Ok(BufReader::new(Box::new(decoder)))
-    } else {
-        Ok(BufReader::new(Box::new(file)))
-    }
-}
-
+/* 
 //seperate function reads -> bufread, check decompression
 pub fn average_quality<T: BufRead>(buf_reader: T) -> io::Result<f64> {
     let mut total_quality = 0.0;
@@ -97,7 +99,7 @@ pub fn average_quality<T: BufRead>(buf_reader: T) -> io::Result<f64> {
 
     Ok(total_quality / read_count as f64)
 }
-
+*/
 
 //traits 
 
@@ -107,9 +109,10 @@ pub fn average_quality<T: BufRead>(buf_reader: T) -> io::Result<f64> {
 // TESTS START HERE
 pub mod test {
     use super::*;
+    use std::io::BufRead;
     #[test]
     fn test_decompress_gz_file() {
-        let file_path = "data/test.R1com.fastq.gz";
+        let file_path = "data/test.R1.fastq.gz";
         let buf_reader = decompress_gz_file(file_path).unwrap();
 
         // Print the first 4 lines of the decompressed file
@@ -121,7 +124,15 @@ pub mod test {
             }
         }
     }
-
+    
+    #[test] 
+    fn test_explain_data() {
+        //t data_name = "@HWI-D00107:50:H6BP8ACWV:5:2204:10131:51624 2:N:0:AGGCAGAA";
+        //plain_data(data_name);
+        let data_name2 = "NIST7035_TAAGGCGA_L001_R1_001.fastq.gz";
+        explain_data(data_name2);
+    }
+    /* 
     #[test]
     fn test_average_quality() {
         let file_path = "data/test.R1com.fastq.gz";
@@ -130,14 +141,8 @@ pub mod test {
         let expected = 39.72222222222222; // Example expected value
         assert_eq!(expected, res);
     }
-
-    #[test] 
-    fn test_explain_data() {
-        //t data_name = "@HWI-D00107:50:H6BP8ACWV:5:2204:10131:51624 2:N:0:AGGCAGAA";
-        //plain_data(data_name);
-        let data_name2 = "NIST7035_TAAGGCGA_L001_R1_001.fastq.gz";
-        explain_data(data_name2);
-    }
+    */
+    /* 
     #[test]
     fn test_calculate_phred_other() {
         let tests: Vec<(u8, u8)> = vec![
@@ -157,5 +162,5 @@ pub mod test {
         print!("res :{} ", res);
         assert_eq!(expected, res);
     }
-
+    */
 }
