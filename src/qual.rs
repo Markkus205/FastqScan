@@ -18,6 +18,7 @@ pub struct Args {
 
 
 //modify so it works with input
+#[allow(dead_code)]
 pub fn explain_data(data_name: &str){
     let split : Vec<&str> = data_name
         .split(|c| c == ' ' || c == ':' || c == '.' || c == '_')
@@ -107,6 +108,7 @@ pub fn average_quality<T: BufRead>(buf_reader: T) -> io::Result<f64> {
 
 
 // TESTS START HERE
+#[cfg(test)]
 pub mod test {
     use super::*;
     use std::io::BufRead;

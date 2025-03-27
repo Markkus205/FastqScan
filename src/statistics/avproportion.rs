@@ -4,7 +4,7 @@ use crate::runner::ToJson;
 use serde::Serialize;
 
 pub struct AverageProportionsStatistic {
-    pub ave_prop: Vec<(BaseCounts)>,
+    pub ave_prop: Vec<BaseCounts>,
 }
 
 impl Statistic for AverageProportionsStatistic {

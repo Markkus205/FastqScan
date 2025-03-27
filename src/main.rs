@@ -46,10 +46,10 @@ fn main() {
 
     let mut json_outputs = Vec::new();
     for stat in statistics {
-        json_outputs.push(stat.to_json());
+        json_outputs.push(stat.to_json());//where traits clash
     }
 
-    // to do: format it more nicely
+    // to do: format it "normally"
     let combined_json = format!("[{}]", json_outputs.join(","));
 
     let output_file_path = "output.json";

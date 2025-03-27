@@ -25,7 +25,7 @@ pub trait StatisticWithJson: Statistic + ToJson {}
 impl<T: Statistic + ToJson> StatisticWithJson for T {}
 
 pub struct WorkflowRunner {
-    pub statistics: Vec<Box<dyn StatisticWithJson>>,
+    pub statistics: Vec<Box<dyn StatisticWithJson>>, //is this a better solution? Or should I leave this as just Statistic and maybe modify the finalize function?
 }
 
 impl WorkflowRunner {
