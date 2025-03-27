@@ -15,14 +15,17 @@ pub trait Statistic {
      */
 
     fn process(&mut self, record: &FastqRecord);
-
-    fn as_any(&self) -> &dyn std::any::Any;
 }
-
+pub trait ToJson {
+    fn to_json(&self) -> String;
+}
 // as any as extra trait?
+pub trait StatisticWithJson: Statistic + ToJson {}
+
+impl<T: Statistic + ToJson> StatisticWithJson for T {}
 
 pub struct WorkflowRunner {
-    pub statistics: Vec<Box<dyn Statistic>>,
+    pub statistics: Vec<Box<dyn StatisticWithJson>>,
 }
 
 impl WorkflowRunner {
@@ -35,7 +38,7 @@ impl WorkflowRunner {
     {
         let mut record = FastqRecord::default();
         while let Ok(()) = WorkflowRunner::parse_record(&mut read, &mut record) {
-            println!("{:?}", record);
+            //println!("{:?}", record);
             for statistic in self.statistics.iter_mut() {
                 statistic.process(&record);
             }
@@ -72,7 +75,7 @@ impl WorkflowRunner {
         Ok(())
     }
 
-    pub fn finalize(self) -> Vec<Box<dyn Statistic>> {
+    pub fn finalize(self) -> Vec<Box<dyn StatisticWithJson>> {
         // Move out the statistics, effectively preventing the future use of the runner.
         self.statistics
     }

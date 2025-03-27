@@ -1,6 +1,7 @@
 use crate::runner::Statistic;
 use crate::runner::FastqRecord;
-
+use crate::runner::ToJson;
+use serde::Serialize;
 
 pub struct AverageProportionsStatistic {
     pub ave_prop: Vec<(BaseCounts)>,
@@ -17,11 +18,27 @@ impl Statistic for AverageProportionsStatistic {
             self.ave_prop[i].update(record.seq[i]);
         }
     }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+}
+
+impl ToJson for AverageProportionsStatistic {
+    fn to_json(&self) -> String {
+
+        let proportions: Vec<(f64, f64, f64, f64, f64)> = self
+            .ave_prop
+            .iter()
+            .map(|base_counts| {
+                let total = base_counts.get_total();
+                base_counts.get_proportions(total)
+            })
+            .collect();
+
+        // Serialize the proportions into JSON
+        serde_json::to_string(&proportions).unwrap()
     }
 }
-#[derive(Debug, Clone)]
+
+
+#[derive(Debug, Clone, Serialize)]
 pub struct BaseCounts {
     a: u64,
     c: u64,
@@ -66,5 +83,26 @@ impl BaseCounts {
     }
     fn get_total(&self) -> u64 {
         self.a + self.c + self.g + self.t + self.n
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_average_proportions_statistic_to_json() {
+        let ave_prop_stat = AverageProportionsStatistic {
+            ave_prop: vec![
+                BaseCounts { a: 10, c: 20, g: 30, t: 40, n: 0 },
+                BaseCounts { a: 5, c: 15, g: 25, t: 35, n: 0 },
+            ],
+        };
+        let json_output = ave_prop_stat.to_json();
+
+        // Corrected expected JSON output
+        let expected_json = r#"[[0.1,0.2,0.3,0.4,0.0],[0.0625,0.1875,0.3125,0.4375,0.0]]"#;
+        println!("JSON Output: {}", json_output);
+        assert_eq!(json_output, expected_json);
     }
 }

@@ -2,13 +2,14 @@ mod runner;
 mod qual;
 mod statistics;
 
-use runner::WorkflowRunner;
+use runner::*;
+
 use crate::statistics::avproportion::AverageProportionsStatistic;
 use crate::statistics::avbase::AvBaseQualityStatistic;
 use qual::*;
-
-
 use clap::Parser;
+use std::fs::File;
+use std::io::Write;
 
 fn main() {
     let args = Args::parse();
@@ -39,12 +40,24 @@ fn main() {
         }
     }
 
-    // Finalize and retrieve statistics
-    /*let statistics = runner.finalize();
+
+    let statistics = runner.finalize();
+
+
+    let mut json_outputs = Vec::new();
     for stat in statistics {
-        // Print or process the results of each statistic
-        println!("{:?}", stat);
-    }*/
+        json_outputs.push(stat.to_json());
+    }
+
+    // to do: format it more nicely
+    let combined_json = format!("[{}]", json_outputs.join(","));
+
+    let output_file_path = "output.json";
+    let mut file = File::create(output_file_path).expect("Failed to create output file");
+    file.write_all(combined_json.as_bytes())
+        .expect("Failed to write to output file");
+
+    println!("Statistics written to {}", output_file_path);
 }
 
 //cargo run -- -1 data/test.R1.fastq -2 data/test.R2.fastq
