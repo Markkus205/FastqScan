@@ -6,6 +6,9 @@ use runner::*;
 
 use crate::statistics::avproportion::AverageProportionsStatistic;
 use crate::statistics::avbase::AvBaseQualityStatistic;
+use crate::statistics::gc_per_read::GCContentStatistic;
+use crate::statistics::length::ReadLengthStatistic;
+
 use qual::*;
 use clap::Parser;
 use std::fs::File;
@@ -19,6 +22,13 @@ fn main() {
         statistics: vec![
             Box::new(AvBaseQualityStatistic { mean: 0., count: 0 }),
             Box::new(AverageProportionsStatistic { ave_prop: Vec::new() }),
+            Box::new(GCContentStatistic {
+                gc_percentages: Vec::new(),
+                total_gc: 0,
+                total_bases: 0,
+            }),
+            Box::new(ReadLengthStatistic::new()),
+
         ],
     };
 
@@ -59,5 +69,7 @@ fn main() {
 
     println!("Statistics written to {}", output_file_path);
 }
+//add standard output
+//only one file being output?
 
 //cargo run -- -1 data/test.R1.fastq -2 data/test.R2.fastq

@@ -17,7 +17,7 @@ pub trait Statistic {
     fn process(&mut self, record: &FastqRecord);
 }
 pub trait ToJson {
-    fn to_json(&self) -> String;
+    fn to_json(&self) -> String; //mut writer -> result unit
 }
 // as any as extra trait?
 pub trait StatisticWithJson: Statistic + ToJson {}
@@ -25,7 +25,7 @@ pub trait StatisticWithJson: Statistic + ToJson {}
 impl<T: Statistic + ToJson> StatisticWithJson for T {}
 
 pub struct WorkflowRunner {
-    pub statistics: Vec<Box<dyn StatisticWithJson>>, //is this a better solution? Or should I leave this as just Statistic and maybe modify the finalize function?
+    pub statistics: Vec<Box<dyn StatisticWithJson>>, //change to public
 }
 
 impl WorkflowRunner {
@@ -46,7 +46,7 @@ impl WorkflowRunner {
     }
 
     // Read data for a complete FASTQ record from `read`.
-    pub fn parse_record<R>(read: &mut R, record: &mut FastqRecord) -> io::Result<()>
+    fn parse_record<R>(read: &mut R, record: &mut FastqRecord) -> io::Result<()>
     where
         R: BufRead,
     {
