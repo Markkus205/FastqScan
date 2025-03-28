@@ -40,16 +40,16 @@ impl ToJson for AverageProportionsStatistic {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BaseCounts {
-    a: u64,
-    c: u64,
-    g: u64,
-    t: u64,
-    n: u64,
+   pub a: u64,
+   pub c: u64,
+   pub g: u64,
+   pub t: u64,
+   pub n: u64,
 }
 
 
 impl BaseCounts {
-    fn new() -> Self {
+   pub fn new() -> Self {
         BaseCounts {
             a: 0,
             c: 0,
@@ -59,7 +59,7 @@ impl BaseCounts {
         }
     }
 
-    fn update(&mut self, base: u8) {
+   pub fn update(&mut self, base: u8) {
         match base {
             65 => self.a += 1,
             67 => self.c += 1,
@@ -68,7 +68,7 @@ impl BaseCounts {
             _ => self.n += 1, // Ambiguous or unknown
         }
     }
-    fn get_proportions(&self, total: u64) -> (f64, f64, f64, f64, f64) { 
+   pub fn get_proportions(&self, total: u64) -> (f64, f64, f64, f64, f64) { 
         if total > 0 {
             (
                 self.a as f64 / total as f64, 
@@ -81,7 +81,7 @@ impl BaseCounts {
             (0.0, 0.0, 0.0, 0.0, 0.0) 
         }
     }
-    fn get_total(&self) -> u64 {
+   pub fn get_total(&self) -> u64 {
         self.a + self.c + self.g + self.t + self.n
     }
 }

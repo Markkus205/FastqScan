@@ -8,6 +8,7 @@ use crate::statistics::avproportion::AverageProportionsStatistic;
 use crate::statistics::avbase::AvBaseQualityStatistic;
 use crate::statistics::gc_per_read::GCContentStatistic;
 use crate::statistics::length::ReadLengthStatistic;
+use crate::statistics::gccontentpos::CGContentPosStatistic;
 
 use qual::*;
 use clap::Parser;
@@ -28,6 +29,7 @@ fn main() {
                 total_bases: 0,
             }),
             Box::new(ReadLengthStatistic::new()),
+            Box::new(CGContentPosStatistic::new()),
 
         ],
     };

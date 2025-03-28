@@ -19,7 +19,7 @@ pub trait Statistic {
 pub trait ToJson {
     fn to_json(&self) -> String; //mut writer -> result unit
 }
-// as any as extra trait?
+
 pub trait StatisticWithJson: Statistic + ToJson {}
 
 impl<T: Statistic + ToJson> StatisticWithJson for T {}
