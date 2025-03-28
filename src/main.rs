@@ -3,10 +3,10 @@ mod qual;
 mod statistics;
 
 use runner::*;
-
+use serde_json::to_string_pretty;
 use crate::statistics::avproportion::AverageProportionsStatistic;
 use crate::statistics::avbase::AvBaseQualityStatistic;
-use crate::statistics::gc_per_read::GCContentStatistic;
+use crate::statistics::gcperread::GCContentStatistic;
 use crate::statistics::length::ReadLengthStatistic;
 use crate::statistics::gccontentpos::CGContentPosStatistic;
 
@@ -14,64 +14,50 @@ use qual::*;
 use clap::Parser;
 use std::fs::File;
 use std::io::Write;
+use std::path::PathBuf;
 
 fn main() {
     let args = Args::parse();
 
-    // Initialize WorkflowRunner with statistics
-    let mut runner = WorkflowRunner {
-        statistics: vec![
-            Box::new(AvBaseQualityStatistic { mean: 0., count: 0 }),
-            Box::new(AverageProportionsStatistic { ave_prop: Vec::new() }),
-            Box::new(GCContentStatistic {
-                gc_percentages: Vec::new(),
-                total_gc: 0,
-                total_bases: 0,
-            }),
-            Box::new(ReadLengthStatistic::new()),
-            Box::new(CGContentPosStatistic::new()),
-
-        ],
-    };
-
-    // Process the first read
-    if let Ok(buf_reader) = decompress_gz_file(args.read1.to_str().unwrap()) {
-        println!("Processing Read 1...");
-        runner.process(buf_reader);
-    } else {
-        eprintln!("Error decompressing Read 1.");
-    }
-
-    // Process the second read if provided
+    // Process Read 1
+    process_and_save(&args.read1, "output_read1.json");
+    
+    // Process Read 2 (if provided)
     if let Some(read2_path) = args.read2 {
-        if let Ok(buf_reader) = decompress_gz_file(read2_path.to_str().unwrap()) {
-            println!("Processing Read 2...");
-            runner.process(buf_reader);
-        } else {
-            eprintln!("Error decompressing Read 2.");
-        }
+        process_and_save(&read2_path, "output_read2.json");
     }
-
-
-    let statistics = runner.finalize();
-
-
-    let mut json_outputs = Vec::new();
-    for stat in statistics {
-        json_outputs.push(stat.to_json());//where traits clash
-    }
-
-    // to do: format it "normally"
-    let combined_json = format!("[{}]", json_outputs.join(","));
-
-    let output_file_path = "output.json";
-    let mut file = File::create(output_file_path).expect("Failed to create output file");
-    file.write_all(combined_json.as_bytes())
-        .expect("Failed to write to output file");
-
-    println!("Statistics written to {}", output_file_path);
 }
-//add standard output
-//only one file being output?
+
+fn process_and_save(read_path: &PathBuf, output_filename: &str) {
+    if let Ok(buf_reader) = decompress_gz_file(read_path.to_str().unwrap()) {
+        println!("\nProcessing {:?}...", read_path);
+        let mut runner = WorkflowRunner {
+            statistics: vec![
+                Box::new(AvBaseQualityStatistic { mean: 0., count: 0 }),
+                Box::new(AverageProportionsStatistic { ave_prop: Vec::new() }),
+                Box::new(GCContentStatistic::new()),
+                Box::new(ReadLengthStatistic::new()),
+                Box::new(CGContentPosStatistic::new()),
+            ],
+        };
+        runner.process(buf_reader);
+        
+        // Finalize statistics
+        let statistics = runner.finalize();
+        let json_outputs: Vec<serde_json::Value> = statistics.iter().map(|stat| serde_json::from_str(&stat.to_json()).unwrap()).collect();
+        let formatted_json = to_string_pretty(&json_outputs).expect("Failed to format JSON");
+        
+        // Print to stdout with formatted JSON
+        println!("\nStatistics for {:?}:\n", read_path);
+        println!("{}\n", formatted_json);
+        
+        // Write to output file
+        let mut file = File::create(output_filename).expect("Failed to create output file");
+        file.write_all(formatted_json.as_bytes()).expect("Failed to write to output file");
+        println!("Statistics written to {}\n", output_filename);
+    } else {
+        eprintln!("\nError decompressing {:?}\n", read_path);
+    }
+}
 
 //cargo run -- -1 data/test.R1.fastq -2 data/test.R2.fastq

@@ -52,6 +52,7 @@ impl Statistic for GCContentStatistic {
 }
 
 impl GCContentStatistic {
+    #[allow(dead_code)]
     pub fn report(&self) {
         if self.gc_percentages.is_empty() {
             println!("No reads processed.");
