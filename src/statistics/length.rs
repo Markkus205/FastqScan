@@ -46,7 +46,7 @@ impl Statistic for ReadLengthStatistic {
         self.total_length += length;
     }
 }
-
+#[allow(dead_code)]
 impl ReadLengthStatistic {
     pub fn report(&self) {
         if self.lengths.is_empty() {

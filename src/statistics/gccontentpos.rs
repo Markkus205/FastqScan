@@ -11,28 +11,8 @@ average G/C content per read position
 
 impl ToJson for CGContentPosStatistic {
     fn to_json(&self) -> String {
-        if self.base_counts.is_empty() {
-            return serde_json::json!({
-                "gc_content_per_position": []
-            })
-            .to_string();
-        }
-
-        let gc_content_per_position: Vec<f64> = self.base_counts
-            .iter()
-            .map(|counts| {
-                let total = counts.get_total();
-                if total > 0 {
-                    
-                    (counts.c + counts.g) as f64 / total as f64
-                } else {
-                    0.0
-                }
-            })
-            .collect();
-
         serde_json::json!({
-            "gc_content_per_position": gc_content_per_position
+            "gc_content_per_position": self.results()
         })
         .to_string()
     }
@@ -68,30 +48,31 @@ pub fn gc_content_per_position(reads: Vec<FastqRecord>) -> Vec<f64>{
 // runner
 
 /// Computes average G/C content per read position.
+/// Computes average G/C content per read position.
 pub struct CGContentPosStatistic {
-    base_counts: Vec<BaseCounts>, // Store cumulative counts
-    max_length: usize,            // Track longest read length
+    position_cg_content: Vec<f64>,  // GC content per position
+    read_count: usize,              // Track the number of reads processed
+    max_length: usize,              // Track the length of the longest read
 }
 
 impl CGContentPosStatistic {
     pub fn new() -> Self {
         Self {
-            base_counts: Vec::new(),
+            position_cg_content: Vec::new(),
+            read_count: 0,
             max_length: 0,
         }
     }
 
-    pub fn results(&self) -> Vec<f64> {
-        self.base_counts
+    fn results(&self) -> Vec<f64> {
+        if self.read_count == 0 {
+            return Vec::new();
+        }
+
+        // Normalize by dividing by the number of processed reads
+        self.position_cg_content
             .iter()
-            .map(|counts| {
-                let total = counts.get_total();
-                if total > 0 {
-                    (counts.c + counts.g) as f64 / total as f64
-                } else {
-                    0.0
-                }
-            })
+            .map(|&gc| gc / self.read_count as f64)
             .collect()
     }
 }
@@ -99,16 +80,30 @@ impl CGContentPosStatistic {
 impl Statistic for CGContentPosStatistic {
     fn process(&mut self, record: &FastqRecord) {
         let read_length = record.seq.len();
+
+        // Update max_length if we encounter a longer read
         if read_length > self.max_length {
             self.max_length = read_length;
-            self.base_counts.resize_with(read_length, BaseCounts::new);
+            self.position_cg_content.resize(read_length, 0.0); // Resize vector if needed
         }
 
-        for (i, &base) in record.seq.iter().enumerate() {
-            self.base_counts[i].update(base);
+        // Compute GC content for this specific read
+        let single_read_gc_content = gc_content_per_position(vec![record.clone()]);
+
+        // Sum up the GC content at each position
+        for (i, &gc) in single_read_gc_content.iter().enumerate() {
+            if i < self.position_cg_content.len() {
+                self.position_cg_content[i] += gc;
+            }
         }
+
+        // Increment the read count
+        self.read_count += 1;
     }
 }
+
+
+
 //////////// in the main
 //Box::new(CGContentPosStatistic { position_cg_content: Vec::new() }),
 

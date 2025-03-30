@@ -4,11 +4,15 @@ mod statistics;
 
 use runner::*;
 use serde_json::to_string_pretty;
+
+use crate::statistics::basequalitypos::BaseQualityPosStatistic;
 use crate::statistics::avproportion::AverageProportionsStatistic;
 use crate::statistics::avbase::AvBaseQualityStatistic;
 use crate::statistics::gcperread::GCContentStatistic;
 use crate::statistics::length::ReadLengthStatistic;
 use crate::statistics::gccontentpos::CGContentPosStatistic;
+
+
 
 use qual::*;
 use clap::Parser;
@@ -34,10 +38,12 @@ fn process_and_save(read_path: &PathBuf, output_filename: &str) {
         let mut runner = WorkflowRunner {
             statistics: vec![
                 Box::new(AvBaseQualityStatistic { mean: 0., count: 0 }),
-                Box::new(AverageProportionsStatistic { ave_prop: Vec::new() }),
                 Box::new(GCContentStatistic::new()),
                 Box::new(ReadLengthStatistic::new()),
                 Box::new(CGContentPosStatistic::new()),
+                Box::new(BaseQualityPosStatistic::new()),
+                Box::new(AverageProportionsStatistic { ave_prop: Vec::new() }),
+                
             ],
         };
         runner.process(buf_reader);
